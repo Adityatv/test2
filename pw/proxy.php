@@ -1,16 +1,34 @@
 <?php
-// Simple reverse proxy for rolexcoderz.site
-$url = "https://rolexcoderz.site" . $_SERVER['REQUEST_URI'];
-$ch = curl_init();
-curl_setopt($ch, CURLOPT_URL, $url);
+// Target site
+$target = "https://rolexcoderz.site";
+
+// Build target URL
+$path = $_SERVER['REQUEST_URI'];
+$url = $target . $path;
+
+// Init cURL
+$ch = curl_init($url);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-curl_setopt($ch, CURLOPT_HEADER, false);
 curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-$output = curl_exec($ch);
-$httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+// Capture headers + body
+$response = curl_exec($ch);
+$info = curl_getinfo($ch);
 curl_close($ch);
 
-http_response_code($httpcode);
-echo $output;
+// Fix headers (remove frame-blockers)
+header("Content-Type: " . $info['content_type']);
+header("Access-Control-Allow-Origin: *");
+header_remove("X-Frame-Options");
+header_remove("Content-Security-Policy");
+
+// Rewrite site links → make them go through proxy
+$response = str_replace(
+    ["href=\"/", "src=\"/"],
+    ["href=\"/proxy.php/", "src=\"/proxy.php/"],
+    $response
+);
+
+echo $response;
 ?>
